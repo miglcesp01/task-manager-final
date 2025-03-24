@@ -93,7 +93,7 @@ export function TaskModal({ open, onOpenChange, onAddTask }: TaskModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] mx-auto">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] mx-auto" aria-describedby={undefined}>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Add New Task</DialogTitle>
