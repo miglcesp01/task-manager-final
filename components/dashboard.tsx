@@ -27,6 +27,28 @@ const getPriorityValue = (priority: TaskPriority): number => {
   }
 }
 
+const sortTasksByDateAndPriority = (tasks: Task[]): Task[] => {
+  return [...tasks].sort((a, b) => {
+    const dateA = new Date(a.dueDate)
+    const dateB = new Date(b.dueDate)
+
+    dateA.setHours(0, 0, 0, 0)
+    dateB.setHours(0, 0, 0, 0)
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const diffA = Math.floor((dateA.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    const diffB = Math.floor((dateB.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffA !== diffB) {
+      return diffA - diffB
+    }
+
+    return getPriorityValue(a.priority) - getPriorityValue(b.priority)
+  })
+}
+
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -68,6 +90,7 @@ export default function Dashboard() {
   const deleteTask = (id: string) => {
     const taskToDelete = tasks.find((task) => task.id === id)
     if (!taskToDelete) {
+      console.error("Task not found for deletion:", id)
       return
     }
 
@@ -82,6 +105,7 @@ export default function Dashboard() {
       createdAt: taskToDelete.createdAt,
     }
 
+    console.log("Deleting task:", taskCopy)
 
     setTasks(tasks.filter((task) => task.id !== id))
 
@@ -95,6 +119,7 @@ export default function Dashboard() {
           size="sm"
           onClick={() => {
             if (isValidTask(taskCopy)) {
+              console.log("Restoring task:", taskCopy)
 
               setTasks((prevTasks) => [...prevTasks, taskCopy])
 
@@ -106,6 +131,7 @@ export default function Dashboard() {
                 duration: 1500,
               })
             } else {
+              console.error("Cannot restore task: Invalid task data", taskCopy)
               toast({
                 title: "Restore failed",
                 description: "Could not restore the task due to missing data.",
@@ -137,55 +163,48 @@ export default function Dashboard() {
     )
   }
 
-  const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      const dateA = new Date(a.dueDate)
-      const dateB = new Date(b.dueDate)
-
-      dateA.setHours(0, 0, 0, 0)
-      dateB.setHours(0, 0, 0, 0)
-
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
-      const diffA = Math.floor((dateA.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-      const diffB = Math.floor((dateB.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
-      if (diffA !== diffB) {
-        return diffA - diffB
-      }
-
-      return getPriorityValue(a.priority) - getPriorityValue(b.priority)
-    })
+  const sortedAllTasks = useMemo(() => {
+    return sortTasksByDateAndPriority(tasks)
   }, [tasks])
 
-  const todayTasks = tasks.filter((task) => {
-    if (!task || !task.dueDate) return false
-    try {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const taskDate = new Date(task.dueDate)
-      taskDate.setHours(0, 0, 0, 0)
-      return taskDate.getTime() === today.getTime()
-    } catch (error) {
-      return false
-    }
-  })
+  const filteredTodayTasks = useMemo(() => {
+    const filtered = tasks.filter((task) => {
+      if (!task || !task.dueDate) return false
+      try {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const taskDate = new Date(task.dueDate)
+        taskDate.setHours(0, 0, 0, 0)
+        return taskDate.getTime() === today.getTime()
+      } catch (error) {
+        console.error("Error filtering today's tasks:", error)
+        return false
+      }
+    })
+    return sortTasksByDateAndPriority(filtered)
+  }, [tasks])
 
-  const upcomingTasks = tasks.filter((task) => {
-    if (!task || !task.dueDate || task.completed) return false
-    try {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const taskDate = new Date(task.dueDate)
-      taskDate.setHours(0, 0, 0, 0)
-      return taskDate.getTime() > today.getTime()
-    } catch (error) {
-      return false
-    }
-  })
+  const filteredUpcomingTasks = useMemo(() => {
+    const filtered = tasks.filter((task) => {
+      if (!task || !task.dueDate || task.completed) return false
+      try {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const taskDate = new Date(task.dueDate)
+        taskDate.setHours(0, 0, 0, 0)
+        return taskDate.getTime() > today.getTime()
+      } catch (error) {
+        console.error("Error filtering upcoming tasks:", error)
+        return false
+      }
+    })
+    return sortTasksByDateAndPriority(filtered)
+  }, [tasks])
 
-  const completedTasks = tasks.filter((task) => task && task.completed)
+  const filteredCompletedTasks = useMemo(() => {
+    const filtered = tasks.filter((task) => task && task.completed)
+    return sortTasksByDateAndPriority(filtered)
+  }, [tasks])
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
@@ -217,7 +236,7 @@ export default function Dashboard() {
 
           <TabsContent value="all" className="space-y-4">
             <TaskList
-              tasks={sortedTasks}
+              tasks={sortedAllTasks}
               onToggleComplete={toggleComplete}
               onUpdateTask={updateTask}
               onDeleteTask={deleteTask}
@@ -226,7 +245,7 @@ export default function Dashboard() {
 
           <TabsContent value="today" className="space-y-4">
             <TaskList
-              tasks={todayTasks}
+              tasks={filteredTodayTasks}
               onToggleComplete={toggleComplete}
               onUpdateTask={updateTask}
               onDeleteTask={deleteTask}
@@ -235,7 +254,7 @@ export default function Dashboard() {
 
           <TabsContent value="upcoming" className="space-y-4">
             <TaskList
-              tasks={upcomingTasks}
+              tasks={filteredUpcomingTasks}
               onToggleComplete={toggleComplete}
               onUpdateTask={updateTask}
               onDeleteTask={deleteTask}
@@ -244,7 +263,7 @@ export default function Dashboard() {
 
           <TabsContent value="completed" className="space-y-4">
             <TaskList
-              tasks={completedTasks}
+              tasks={filteredCompletedTasks}
               onToggleComplete={toggleComplete}
               onUpdateTask={updateTask}
               onDeleteTask={deleteTask}
@@ -257,4 +276,3 @@ export default function Dashboard() {
     </div>
   )
 }
-

@@ -9,7 +9,6 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "TaskFlow - Organize Your Tasks",
   description: "A simple task management application to help you organize and prioritize your tasks",
-    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -26,7 +25,5 @@ export default function RootLayout({
     </html>
   )
 }
-
-
 
 import './globals.css'

@@ -25,7 +25,6 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDia
   const [priority, setPriority] = useState<TaskPriority>(task.priority)
   const [dateError, setDateError] = useState<string | null>(null)
 
-  // Update state when task changes
   useEffect(() => {
     setTitle(task.title)
     setDate(new Date(task.dueDate))
@@ -40,7 +39,6 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDia
       return false
     }
 
-    // Check if the date can be converted to ISO string
     try {
       selectedDate.toISOString()
     } catch (error) {

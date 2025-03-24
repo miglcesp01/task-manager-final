@@ -30,7 +30,6 @@ export function TaskModal({ open, onOpenChange, onAddTask }: TaskModalProps) {
       return false
     }
 
-    // Check if the date can be converted to ISO string
     try {
       selectedDate.toISOString()
     } catch (error) {

@@ -32,7 +32,6 @@ export function TaskStats({ tasks }: TaskStatsProps) {
       }
     }).length
 
-    // Fix the overdue calculation to properly count tasks
     const overdue = tasks.filter((task) => {
       if (!task || !task.dueDate || task.completed) return false
       try {
