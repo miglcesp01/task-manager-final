@@ -85,7 +85,7 @@ export function TaskEditDialog({ task, open, onOpenChange, onSave }: TaskEditDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] mx-auto">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-[500px] mx-auto" aria-describedby={"Edit a Task"}>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
