@@ -1,21 +1,37 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useMemo } from "react"
 import { TaskList } from "@/components/task-list"
 import { TaskModal } from "@/components/task-modal"
 import { TaskStats } from "@/components/task-stats"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import type { Task } from "@/lib/types"
+import { TaskPriority } from "@/lib/types"
 import { initialTasks } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Plus } from "lucide-react"
 
+const getPriorityValue = (priority: TaskPriority): number => {
+  switch (priority) {
+    case TaskPriority.URGENT:
+      return 0
+    case TaskPriority.HIGH:
+      return 1
+    case TaskPriority.MEDIUM:
+      return 2
+    case TaskPriority.LOW:
+      return 3
+    default:
+      return 4
+  }
+}
+
 export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("all")
   const { toast, dismiss } = useToast()
-  const deletedTaskRef = useRef<Task | null>(null)
 
   const addTask = (task: Task) => {
     setTasks([...tasks, { ...task, id: Date.now().toString() }])
@@ -36,17 +52,39 @@ export default function Dashboard() {
     })
   }
 
+  const isValidTask = (task: any): task is Task => {
+    return (
+      task &&
+      typeof task === "object" &&
+      typeof task.id === "string" &&
+      typeof task.title === "string" &&
+      typeof task.dueDate === "string" &&
+      typeof task.category === "string" &&
+      typeof task.priority === "string" &&
+      typeof task.completed === "boolean"
+    )
+  }
+
   const deleteTask = (id: string) => {
     const taskToDelete = tasks.find((task) => task.id === id)
-    if (!taskToDelete) return
+    if (!taskToDelete) {
+      return
+    }
 
-    // Store the deleted task for potential undo
-    deletedTaskRef.current = { ...taskToDelete }
+    const taskCopy = {
+      id: taskToDelete.id,
+      title: taskToDelete.title,
+      description: taskToDelete.description,
+      dueDate: taskToDelete.dueDate,
+      category: taskToDelete.category,
+      priority: taskToDelete.priority,
+      completed: taskToDelete.completed,
+      createdAt: taskToDelete.createdAt,
+    }
 
-    // Remove the task from the list
+
     setTasks(tasks.filter((task) => task.id !== id))
 
-    // Show toast with undo button
     const { id: toastId } = toast({
       title: "Task deleted",
       description: "Your task has been removed.",
@@ -56,18 +94,21 @@ export default function Dashboard() {
           variant="outline"
           size="sm"
           onClick={() => {
-            if (deletedTaskRef.current) {
-              // Make sure we're adding a complete task object
-              setTasks((prev) => [...prev, deletedTaskRef.current!])
-              deletedTaskRef.current = null
+            if (isValidTask(taskCopy)) {
 
-              // Dismiss the current toast
+              setTasks((prevTasks) => [...prevTasks, taskCopy])
+
               dismiss(toastId)
 
-              // Show a quick confirmation toast
               toast({
                 title: "Task restored",
                 description: "Your task has been restored successfully.",
+                duration: 1500,
+              })
+            } else {
+              toast({
+                title: "Restore failed",
+                description: "Could not restore the task due to missing data.",
                 duration: 1500,
               })
             }
@@ -96,15 +137,37 @@ export default function Dashboard() {
     )
   }
 
-  // Safe filter functions with null checks
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      const dateA = new Date(a.dueDate)
+      const dateB = new Date(b.dueDate)
+
+      dateA.setHours(0, 0, 0, 0)
+      dateB.setHours(0, 0, 0, 0)
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      const diffA = Math.floor((dateA.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      const diffB = Math.floor((dateB.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+      if (diffA !== diffB) {
+        return diffA - diffB
+      }
+
+      return getPriorityValue(a.priority) - getPriorityValue(b.priority)
+    })
+  }, [tasks])
+
   const todayTasks = tasks.filter((task) => {
     if (!task || !task.dueDate) return false
     try {
       const today = new Date()
+      today.setHours(0, 0, 0, 0)
       const taskDate = new Date(task.dueDate)
-      return taskDate.toDateString() === today.toDateString()
+      taskDate.setHours(0, 0, 0, 0)
+      return taskDate.getTime() === today.getTime()
     } catch (error) {
-      console.error("Error filtering today's tasks:", error)
       return false
     }
   })
@@ -113,15 +176,20 @@ export default function Dashboard() {
     if (!task || !task.dueDate || task.completed) return false
     try {
       const today = new Date()
+      today.setHours(0, 0, 0, 0)
       const taskDate = new Date(task.dueDate)
-      return taskDate > today
+      taskDate.setHours(0, 0, 0, 0)
+      return taskDate.getTime() > today.getTime()
     } catch (error) {
-      console.error("Error filtering upcoming tasks:", error)
       return false
     }
   })
 
   const completedTasks = tasks.filter((task) => task && task.completed)
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+  }
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -131,7 +199,7 @@ export default function Dashboard() {
       </header>
 
       <div className="flex justify-end mb-4">
-        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1 w-full md:w-auto">
+        <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1">
           <Plus className="h-4 w-4" /> Add Task
         </Button>
       </div>
@@ -139,7 +207,7 @@ export default function Dashboard() {
       <TaskStats tasks={tasks} />
 
       <div className="space-y-6 mt-6">
-        <Tabs defaultValue="all">
+        <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="today">Today</TabsTrigger>
@@ -149,7 +217,7 @@ export default function Dashboard() {
 
           <TabsContent value="all" className="space-y-4">
             <TaskList
-              tasks={tasks}
+              tasks={sortedTasks}
               onToggleComplete={toggleComplete}
               onUpdateTask={updateTask}
               onDeleteTask={deleteTask}
